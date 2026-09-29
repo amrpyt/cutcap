@@ -7,8 +7,8 @@ const { spawn, spawnSync } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 
 const CAPCUT_CLI_VERSION = '0.26.0';
-const MARGIN_BEFORE = 0;
-const MARGIN_AFTER = 0;
+const MARGIN_BEFORE = 0.20;
+const MARGIN_AFTER = 0.40;
 const SMOOTH_CUT = 0.35;
 const SMOOTH_CLIP = 0.10;
 
@@ -16,9 +16,9 @@ function fail(message) { throw new Error(message); }
 
 function requireFile(value) {
   const input = String(value || '').trim().replace(/^"|"$/g, '');
-  if (!input) fail('اكتب مسار الفيديو. مثال: cutcap "D:\\video.mp4"');
+  if (!input) fail('Enter a video path. Example: cutcap "D:\\video.mp4"');
   const file = path.resolve(input);
-  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) fail(`الفيديو مش موجود: ${file}`);
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) fail(`Video not found: ${file}`);
   return file;
 }
 
@@ -64,7 +64,7 @@ function editorProcesses() {
 
 function ensureCapCutClosed() {
   const running = editorProcesses();
-  if (running.length) fail(`اقفل CapCut الأول، وبعدها شغّل الأمر تاني. (${running.join(' / ')})`);
+  if (running.length) fail(`Close CapCut first, then run the command again. (${running.join(' / ')})`);
 }
 
 function run(file, args, options = {}) {
@@ -85,13 +85,13 @@ function run(file, args, options = {}) {
 
 async function runAutoEditor(args, cwd) {
   const exe = findAutoEditor();
-  if (!exe) fail('CutCap مش متثبت صح. شغّل install.cmd مرة واحدة.');
+  if (!exe) fail('CutCap is not installed correctly. Run install.cmd once.');
   return run(exe, args, { cwd });
 }
 
 async function runCapCut(args) {
   const cli = findCapCutCliJs();
-  if (!cli) fail(`capcut-cli ${CAPCUT_CLI_VERSION} مش متثبت. شغّل install.cmd.`);
+  if (!cli) fail(`capcut-cli ${CAPCUT_CLI_VERSION} is not installed. Run install.cmd.`);
   return run(process.execPath, [cli, ...args], { cwd: __dirname });
 }
 
@@ -106,9 +106,9 @@ function parseTimebase(value) {
 
 async function getMediaInfo(source) {
   const result = await runAutoEditor(['info', source, '--json'], path.dirname(source));
-  if (result.code !== 0) fail(result.output || 'مقدرتش أقرأ معلومات الفيديو.');
+  if (result.code !== 0) fail(result.output || 'Could not read video information.');
   let data;
-  try { data = JSON.parse(result.stdout); } catch { fail('Auto-Editor رجّع معلومات فيديو غير مفهومة.'); }
+  try { data = JSON.parse(result.stdout); } catch { fail('Auto-Editor returned invalid video information.'); }
   const item = Object.values(data || {})[0] || {};
   const duration = Number(item?.container?.duration || item?.video?.[0]?.duration || item?.audio?.[0]?.duration || 0);
   const fps = parseTimebase(item?.recommendedTimebase || item?.video?.[0]?.fps || '30/1');
@@ -169,7 +169,7 @@ function recommendedThreshold(hist, total) {
 
 async function analyzeRecommendedThreshold(source) {
   const exe = findAutoEditor();
-  if (!exe) fail('Auto-Editor مش موجود. شغّل install.cmd.');
+  if (!exe) fail('Auto-Editor is not installed. Run install.cmd.');
   const hist = new Uint32Array(200);
   const minDb = -80, maxDb = 0;
   let total = 0;
@@ -194,7 +194,7 @@ async function analyzeRecommendedThreshold(source) {
       else resolve();
     });
   });
-  if (!total) fail('الفيديو مفيهوش مستوى صوت قابل للتحليل.');
+  if (!total) fail('No usable audio level data was found in the video.');
   return recommendedThreshold(Array.from(hist), total);
 }
 
@@ -226,7 +226,7 @@ function buildOtio({ source, fps, sourceDuration, chunks, name }) {
       media_reference: { OTIO_SCHEMA: 'ExternalReference.1', name: mediaName, target_url: source, available_range: range(0, fullFrames), metadata: {} },
     });
   }
-  if (!clips.length) fail('الإعداد التلقائي حذف الفيديو كله.');
+  if (!clips.length) fail('The automatic settings would remove the entire video.');
   return {
     OTIO_SCHEMA: 'Timeline.1', name: `${name} - Auto Cut`, global_start_time: rt(0), metadata: { cutcap: { source } },
     tracks: {
@@ -286,7 +286,7 @@ function reducedRatio(width, height, fallback = 'original') {
 
 async function createTemplate(draftsDir, media) {
   const seed = findSeedProject(draftsDir);
-  if (!seed) fail('افتح CapCut مرة واحدة، اعمل مشروع فاضي، اقفله، وبعدها شغّل cutcap تاني.');
+  if (!seed) fail('Open CapCut once, create a blank project, close CapCut, then run cutcap again.');
   const cli = findCapCutCliJs();
   const { seedDraftSkeleton } = await import(pathToFileURL(path.join(path.dirname(cli), 'factory.js')).href);
   const donorCanvas = seed.draft?.canvas_config || { width: 1920, height: 1080, ratio: '16:9' };
@@ -321,7 +321,7 @@ function uniqueDraftPath(root, name) {
 
 async function makeCapCutProject(source, threshold) {
   const draftsDir = findCapCutDraftsDir();
-  if (!draftsDir) fail('CapCut مش متثبت أو لسه متفتحش على الجهاز.');
+  if (!draftsDir) fail('CapCut is not installed or has not been opened on this PC yet.');
   if (!findCapCutCliJs()) fail(`capcut-cli ${CAPCUT_CLI_VERSION} مش متثبت. شغّل install.cmd.`);
   ensureCapCutClosed();
 
@@ -337,7 +337,7 @@ async function makeCapCutProject(source, threshold) {
       source, '--edit', `audio:threshold=${threshold}%`, '--margin', `${MARGIN_BEFORE}sec,${MARGIN_AFTER}sec`,
       '--smooth', `${SMOOTH_CUT}sec,${SMOOTH_CLIP}sec`, '--export', 'v1', '-o', timelineFile,
     ], cwd);
-    if (edit.code !== 0 || !fs.existsSync(timelineFile)) fail(edit.output || 'Auto-Editor مقدرش يعمل التايم لاين.');
+    if (edit.code !== 0 || !fs.existsSync(timelineFile)) fail(edit.output || 'Auto-Editor could not create the timeline.');
 
     const timeline = JSON.parse(fs.readFileSync(timelineFile, 'utf8').replace(/^\uFEFF/, ''));
     const fps = parseTimebase(timeline.timebase);
@@ -352,9 +352,9 @@ async function makeCapCutProject(source, threshold) {
     templateDir = template.dir;
     const stagedDraft = path.join(stagingRoot, projectName);
     const imported = await runCapCut(['import-timeline', otioFile, '--out', stagedDraft, '--template', templateDir]);
-    if (imported.code !== 0 || !fs.existsSync(stagedDraft)) fail(imported.output || 'مقدرتش أبني مشروع CapCut.');
+    if (imported.code !== 0 || !fs.existsSync(stagedDraft)) fail(imported.output || 'Could not build the CapCut project.');
     const stagedLint = await runCapCut(['lint', stagedDraft, '--frame-grid']);
-    if (stagedLint.code >= 2) fail(stagedLint.output || 'مشروع CapCut التجريبي فيه خطأ.');
+    if (stagedLint.code >= 2) fail(stagedLint.output || 'The staged CapCut project failed validation.');
 
     ensureCapCutClosed();
     const finalDraft = uniqueDraftPath(draftsDir, projectName);
@@ -365,22 +365,22 @@ async function makeCapCutProject(source, threshold) {
     publishedDraft = finalDraft;
 
     const relink = await runCapCut(['relink', finalDraft, '--from', stagedDraft, '--to', finalDraft]);
-    if (relink.code !== 0) fail(relink.output || 'مقدرتش أثبت مسارات ملفات المشروع.');
+    if (relink.code !== 0) fail(relink.output || 'Could not finalize the project media paths.');
     const publishedLint = await runCapCut(['lint', finalDraft, '--frame-grid']);
-    if (publishedLint.code >= 2) fail(publishedLint.output || 'المشروع النهائي فيه خطأ.');
+    if (publishedLint.code >= 2) fail(publishedLint.output || 'The final CapCut project failed validation.');
 
     const plan = await runCapCut(['register', finalDraft, '--materials', '--drafts', draftsDir]);
-    if (plan.code !== 0) fail(plan.output || 'مقدرتش أجهز تسجيل المشروع في CapCut.');
+    if (plan.code !== 0) fail(plan.output || 'Could not prepare CapCut project registration.');
     ensureCapCutClosed();
     registrationStarted = true;
     const register = await runCapCut(['register', finalDraft, '--materials', '--drafts', draftsDir, '--apply']);
-    if (register.code !== 0) fail(`المشروع اتعمل لكن تسجيله في CapCut فشل.\n${register.output}`);
+    if (register.code !== 0) fail(`The project was created, but CapCut registration failed.\n${register.output}`);
 
     ensureCapCutClosed();
     const fix = await runCapCut(['lint', finalDraft, '--fix', '--frame-grid']);
-    if (fix.code >= 2) fail(fix.output || 'مقدرتش أصلح ربط ملفات المشروع.');
+    if (fix.code >= 2) fail(fix.output || 'Could not repair media linking inside the CapCut project.');
     const finalLint = await runCapCut(['lint', finalDraft, '--frame-grid']);
-    if (finalLint.code >= 2) fail(finalLint.output || 'الفحص النهائي لمشروع CapCut فشل.');
+    if (finalLint.code >= 2) fail(finalLint.output || 'Final CapCut project validation failed.');
 
     completed = true;
     return { projectName: path.basename(finalDraft), clips: otio.tracks.children[0].children.length };
@@ -395,18 +395,18 @@ async function makeCapCutProject(source, threshold) {
 
 async function main() {
   try {
-    if (process.platform !== 'win32') fail('CutCap النسخة دي لويندوز فقط.');
+    if (process.platform !== 'win32') fail('This CutCap build supports Windows only.');
     const source = requireFile(process.argv[2]);
     ensureCapCutClosed();
-    console.log('1/3 تحليل الصوت...');
+    console.log('1/3 Analyzing audio...');
     const threshold = await analyzeRecommendedThreshold(source);
-    console.log(`2/3 الموصى به: ${threshold}% — قص السكوت...`);
+    console.log(`2/3 Recommended threshold: ${threshold}% - cutting silence...`);
     const result = await makeCapCutProject(source, threshold);
-    console.log(`3/3 تم: ${result.projectName}`);
-    console.log(`القصات: ${result.clips} | الحساسية: ${threshold}% | قبل/بعد: 0/0 ثانية`);
-    console.log('افتح CapCut وهتلاقي المشروع جاهز.');
+    console.log(`3/3 Done: ${result.projectName}`);
+    console.log(`Clips: ${result.clips} | Threshold: ${threshold}% | Speech padding: ${MARGIN_BEFORE}s before / ${MARGIN_AFTER}s after`);
+    console.log('Open CapCut. The editable project is ready in your project list.');
   } catch (error) {
-    console.error(`خطأ: ${error?.message || error}`);
+    console.error(`Error: ${error?.message || error}`);
     process.exitCode = 1;
   }
 }
