@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 const readline = require('node:readline');
 const { spawn, spawnSync } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
+const youtube = require('./youtube');
 
 const CAPCUT_CLI_VERSION = '0.26.0';
 const MARGIN_BEFORE = 0.10;
@@ -393,18 +394,25 @@ async function makeCapCutProject(source, threshold) {
   }
 }
 
+async function runAutoCut(sourceArg) {
+  const source = requireFile(sourceArg);
+  ensureCapCutClosed();
+  console.log('1/3 Analyzing audio...');
+  const threshold = await analyzeRecommendedThreshold(source);
+  console.log(`2/3 Recommended threshold: ${threshold}% - cutting silence...`);
+  const result = await makeCapCutProject(source, threshold);
+  console.log(`3/3 Done: ${result.projectName}`);
+  console.log(`Clips: ${result.clips} | Threshold: ${threshold}% | Speech padding: ${MARGIN_BEFORE}s before / ${MARGIN_AFTER}s after`);
+  console.log('Open CapCut. The editable project is ready in your project list.');
+}
+
 async function main() {
   try {
     if (process.platform !== 'win32') fail('This CutCap build supports Windows only.');
-    const source = requireFile(process.argv[2]);
-    ensureCapCutClosed();
-    console.log('1/3 Analyzing audio...');
-    const threshold = await analyzeRecommendedThreshold(source);
-    console.log(`2/3 Recommended threshold: ${threshold}% - cutting silence...`);
-    const result = await makeCapCutProject(source, threshold);
-    console.log(`3/3 Done: ${result.projectName}`);
-    console.log(`Clips: ${result.clips} | Threshold: ${threshold}% | Speech padding: ${MARGIN_BEFORE}s before / ${MARGIN_AFTER}s after`);
-    console.log('Open CapCut. The editable project is ready in your project list.');
+    const args = process.argv.slice(2);
+    const handled = await youtube.handle(args, runAutoCut);
+    if (handled) return;
+    await runAutoCut(args[0]);
   } catch (error) {
     console.error(`Error: ${error?.message || error}`);
     process.exitCode = 1;
