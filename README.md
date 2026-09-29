@@ -84,6 +84,8 @@ cutcap yt "https://youtu.be/VIDEO_ID" --from 12:30 --to 14:00 --quality 1080 --e
 
 Fast mode is the default because it is better for quick downloads and low CPU usage.
 
+If YouTube returns a `403 Forbidden` / SABR media error, CutCap automatically retries with an alternate YouTube player client. If that also fails, run `cutcap update` and retry.
+
 ## Download a full YouTube video
 
 ```bat

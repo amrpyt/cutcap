@@ -52,6 +52,33 @@ function runLive(file, args, cwd) {
   });
 }
 
+function runLiveCapture(file, args, cwd) {
+  return new Promise(function (resolve, reject) {
+    const child = spawn(file, args, {
+      cwd: cwd || process.cwd(),
+      windowsHide: true,
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let output = '';
+    const collect = function (chunk, target) {
+      const text = chunk.toString('utf8');
+      target.write(text);
+      if (output.length < 200000) output += text;
+    };
+    child.stdout.on('data', function (chunk) { collect(chunk, process.stdout); });
+    child.stderr.on('data', function (chunk) { collect(chunk, process.stderr); });
+    child.once('error', reject);
+    child.once('close', function (code) {
+      resolve({ code: Number(code == null ? 1 : code), output: output });
+    });
+  });
+}
+
+function shouldRetryYoutube403(output) {
+  return /\b403\b|forbidden|forcing sabr|missing a url/i.test(String(output || ''));
+}
+
 function requireYoutubeTools() {
   const ytDlp = findYtDlp();
   const ffmpeg = findFfmpeg();
@@ -168,8 +195,19 @@ async function downloadYoutube(options) {
   console.log('Output: ' + outputDir);
   console.log('');
 
-  const code = await runLive(tools.ytDlp, args, outputDir);
-  if (code !== 0) fail('yt-dlp exited with code ' + code + '.');
+  let result = await runLiveCapture(tools.ytDlp, args, outputDir);
+
+  if (result.code !== 0 && shouldRetryYoutube403(result.output)) {
+    console.log('');
+    console.log('YouTube blocked the first media URL (403/SABR). Retrying with the Android player client...');
+    console.log('');
+    const retryArgs = args.concat(['--extractor-args', 'youtube:player_client=android']);
+    result = await runLiveCapture(tools.ytDlp, retryArgs, outputDir);
+  }
+
+  if (result.code !== 0) {
+    fail('yt-dlp exited with code ' + result.code + '. Run "cutcap update" and try again.');
+  }
   console.log('');
   console.log('Done.');
 }
