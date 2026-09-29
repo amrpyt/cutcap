@@ -322,7 +322,7 @@ function uniqueDraftPath(root, name) {
 async function makeCapCutProject(source, threshold) {
   const draftsDir = findCapCutDraftsDir();
   if (!draftsDir) fail('CapCut is not installed or has not been opened on this PC yet.');
-  if (!findCapCutCliJs()) fail(`capcut-cli ${CAPCUT_CLI_VERSION} مش متثبت. شغّل install.cmd.`);
+  if (!findCapCutCliJs()) fail(`capcut-cli ${CAPCUT_CLI_VERSION} is not installed. Run install.cmd.`);
   ensureCapCutClosed();
 
   const cwd = path.dirname(source);
