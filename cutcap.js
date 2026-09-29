@@ -7,8 +7,8 @@ const { spawn, spawnSync } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 
 const CAPCUT_CLI_VERSION = '0.26.0';
-const MARGIN_BEFORE = 0.20;
-const MARGIN_AFTER = 0.40;
+const MARGIN_BEFORE = 0.10;
+const MARGIN_AFTER = 0.10;
 const SMOOTH_CUT = 0.35;
 const SMOOTH_CLIP = 0.10;
 
