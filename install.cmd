@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 title CutCap Installer
 
 set "APPDIR=%LOCALAPPDATA%\CutCap"
@@ -26,7 +26,7 @@ if errorlevel 1 (
 ) else (
   for /f %%V in ('node -p "Number(process.versions.node.split('.')[0])"') do set "NODE_MAJOR=%%V"
   if not defined NODE_MAJOR set "NEED_NODE=1"
-  if defined NODE_MAJOR if %NODE_MAJOR% LSS 22 set "NEED_NODE=1"
+  if defined NODE_MAJOR if !NODE_MAJOR! LSS 22 set "NEED_NODE=1"
 )
 
 if "%NEED_NODE%"=="1" (
