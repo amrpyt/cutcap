@@ -28,8 +28,8 @@ Then open CapCut. The new project will already be in the project list with the c
 ## Automatic settings
 
 - Silence threshold: **recommended value calculated separately for each video**
-- Before speech: **0.0s**
-- After speech: **0.0s**
+- Before speech: **0.20s**
+- After speech: **0.40s**
 - Minimum cut: **0.35s**
 - Minimum clip: **0.10s**
 - Output: **editable CapCut project**
@@ -39,11 +39,11 @@ CapCut must stay closed while `cutcap` is running so its project index cannot be
 ## Example
 
 ```text
-1/3 تحليل الصوت...
-2/3 الموصى به: 6.3% — قص السكوت...
-3/3 تم: My Video - Auto Cut
-القصات: 42 | الحساسية: 6.3% | قبل/بعد: 0/0 ثانية
-افتح CapCut وهتلاقي المشروع جاهز.
+1/3 Analyzing audio...
+2/3 Recommended threshold: 6.3% - cutting silence...
+3/3 Done: My Video - Auto Cut
+Clips: 42 | Threshold: 6.3% | Speech padding: 0.20s before / 0.40s after
+Open CapCut. The editable project is ready in your project list.
 ```
 
 ## Credits
